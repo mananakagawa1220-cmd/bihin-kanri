@@ -1,0 +1,42 @@
+name: Supabase Backup
+
+on:
+  schedule:
+    - cron: '0 20 * * *'
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Backup tables
+        run: |
+          mkdir -p backups
+          DATE=$(date +%Y-%m-%d)
+          curl -s \
+            -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/equipment?select=*&order=id.asc" \
+            -o "backups/equipment_${DATE}.json"
+          curl -s \
+            -H "apikey: ${{ secrets.SUPABASE_KEY }}" \
+            -H "Authorization: Bearer ${{ secrets.SUPABASE_KEY }}" \
+            "${{ secrets.SUPABASE_URL }}/rest/v1/equipment_usage_log?select=*&order=id.asc" \
+            -o "backups/usage_log_${DATE}.json"
+
+      - name: Keep only last 30 days
+        run: |
+          cd backups
+          ls -t equipment_*.json 2>/dev/null | tail -n +31 | xargs -r rm
+          ls -t usage_log_*.json 2>/dev/null | tail -n +31 | xargs -r rm
+
+      - name: Commit backup
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          git add backups/
+          git diff --staged --quiet || git commit -m "🗄️ Auto backup $(date +%Y-%m-%d)"
+          git push

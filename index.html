@@ -75,11 +75,28 @@ header { background:linear-gradient(135deg,#1e3a8a,#1e40af,#2563eb); color:white
 
 .table-wrap { background:white; border-radius:12px; box-shadow:var(--shadow); overflow:hidden; }
 .table-wrap.hidden { display:none; }
-table { width:100%; border-collapse:collapse; }
+.table-scroll { overflow-x:auto; -webkit-overflow-scrolling:touch; }
+table { width:max-content; min-width:100%; border-collapse:collapse; }
 thead { background:#f8fafc; }
-th { padding:10px 12px; text-align:left; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; border-bottom:1px solid var(--border); }
-td { padding:11px 12px; font-size:13px; border-bottom:1px solid var(--border); }
+th { padding:10px 12px; text-align:left; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; border-bottom:1px solid var(--border); white-space:nowrap; }
+td { padding:11px 12px; font-size:13px; border-bottom:1px solid var(--border); white-space:nowrap; }
 tr:hover td { background:#f8fafc; }
+/* アクション列固定 */
+th.sticky-col, td.sticky-col {
+  position:sticky; right:0; background:white; z-index:2;
+  box-shadow:-2px 0 6px rgba(0,0,0,0.07);
+}
+thead th.sticky-col { background:#f8fafc; }
+tr:hover td.sticky-col { background:#f8fafc; }
+
+/* ホーム備品数カード */
+.home-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:10px; margin-bottom:16px; }
+.stat-card { background:white; border-radius:10px; padding:12px 14px; box-shadow:var(--shadow); border:1px solid var(--border); cursor:pointer; transition:all .15s; }
+.stat-card:hover { transform:translateY(-2px); box-shadow:var(--shadow-md); }
+.stat-card .stat-icon { font-size:20px; margin-bottom:4px; }
+.stat-card .stat-label { font-size:10px; color:var(--text-muted); font-weight:700; margin-bottom:2px; }
+.stat-card .stat-num { font-size:22px; font-weight:800; color:var(--primary); }
+.stat-card .stat-sub { font-size:10px; color:var(--text-muted); margin-top:2px; }
 
 .badge { display:inline-flex; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700; }
 .badge-supplies { background:#f0fdf4; color:#166534; }
@@ -370,9 +387,14 @@ tr.archived-row td img { filter:grayscale(80%); opacity:0.6; }
     <div class="alert-panel-body" id="alertPanelBody" style="display:none;"></div>
   </div>
 
+  <!-- ホーム備品数サマリー -->
+  <div class="home-stats" id="homeStats" style="display:none;"></div>
+
   <div id="cardView" class="card-grid"></div>
   <div id="tableView" class="table-wrap hidden">
-    <table><thead id="tableHead"></thead><tbody id="tableBody"></tbody></table>
+    <div class="table-scroll">
+      <table><thead id="tableHead"></thead><tbody id="tableBody"></tbody></table>
+    </div>
   </div>
 </div>
 
@@ -861,6 +883,7 @@ function setTab(tab){
 function render(){
   updateLocationFilter();
   updateAlertPanel();
+  updateHomeStats();
   if(currentTab==='supplies'){
     renderCardView();
   }else if(currentTab==='archive'){
@@ -870,6 +893,30 @@ function render(){
   }else{
     renderTableView();
   }
+}
+
+function updateHomeStats(){
+  const el=document.getElementById('homeStats');
+  if(currentTab!=='all'){el.style.display='none';return;}
+  el.style.display='grid';
+  const cats=[
+    {key:'supplies',icon:'📦',label:'事務・現場備品',tab:'supplies'},
+    {key:'tool',icon:'🔧',label:'道具',tab:'tool'},
+    {key:'heavy_own',icon:'🏗️',label:'自社重機',tab:'heavy_own'},
+    {key:'heavy_lease',icon:'🏗️',label:'リース重機',tab:'heavy_lease'},
+    {key:'vehicle_own',icon:'🚗',label:'自社車両',tab:'vehicle_own'},
+    {key:'vehicle_lease',icon:'🚗',label:'リース車両',tab:'vehicle_lease'},
+  ];
+  el.innerHTML=cats.map(c=>{
+    const count=data.filter(d=>d.category===c.key&&!d.archived).length;
+    const lentCount=data.filter(d=>d.category===c.key&&!d.archived&&d.lent).length;
+    return `<div class="stat-card" onclick="setTab('${c.tab}')">
+      <div class="stat-icon">${c.icon}</div>
+      <div class="stat-label">${c.label}</div>
+      <div class="stat-num">${count}<span style="font-size:13px;font-weight:600;color:var(--text-muted);">件</span></div>
+      ${lentCount>0?`<div class="stat-sub">📤 貸出中 ${lentCount}件</div>`:'<div class="stat-sub" style="color:#16a34a;">✅ 全て貸出可</div>'}
+    </div>`;
+  }).join('');
 }
 
 function updateLocationFilter(){
@@ -992,6 +1039,10 @@ function renderTableView(){
   const cats=currentTab==='all'?Object.keys(CAT_META):[currentTab];
   const filtered=getFilteredData().filter(item=>cats.includes(item.category));
 
+  const hideStockCats=['heavy_own','heavy_lease','vehicle_own','vehicle_lease'];
+  const showStock=!(cats.length===1 && hideStockCats.includes(cats[0])) && !(cats.length===Object.keys(CAT_META).length ? false : cats.every(c=>hideStockCats.includes(c)));
+  // 全て表示の場合は在庫列を出す、重機・車両単独タブでは隠す
+  const isHeavyVehicleOnly = cats.every(c=>hideStockCats.includes(c));
   document.getElementById('tableHead').innerHTML=`<tr>
     <th>画像</th>
     <th>メモ</th>
@@ -999,14 +1050,14 @@ function renderTableView(){
     ${sortThHtml('区分','category')}
     ${sortThHtml('所有者','owner')}
     ${sortThHtml('保管場所','location')}
-    ${sortThHtml('在庫','stock')}
+    ${isHeavyVehicleOnly?'':sortThHtml('在庫','stock')}
     <th>状態</th>
     <th>貸出先</th>
     ${sortThHtml('車検満了日','shaken')}
     ${sortThHtml('自賠責期日','jibaiseki')}
     ${sortThHtml('任意保険期日','insurance')}
     ${sortThHtml('オイル交換日','oil')}
-    <th>アクション</th>
+    <th class="sticky-col">アクション</th>
   </tr>`;
   const tbody=document.getElementById('tableBody');
   tbody.innerHTML=filtered.map(item=>{
@@ -1037,20 +1088,20 @@ function renderTableView(){
       <td><span class="badge ${meta.badge}">${meta.label}</span></td>
       <td>${item.owner||'—'}</td>
       <td>${item.location||'—'}</td>
-      <td style="text-align:center;">${item.stock}</td>
+      ${isHeavyVehicleOnly?'':"<td style='text-align:center;'>"+item.stock+"</td>"}
       <td><span class="badge ${item.lent?'badge-out':'badge-in'}" style="white-space:nowrap;">${item.lent?'📤 貸出中':'✅ 貸出可'}</span></td>
       <td style="font-size:12px;">${item.lent?`<strong>${item.borrower||'—'}</strong><br><span style="color:var(--text-muted);">返却予定：${item.returnPlan?formatDate(item.returnPlan):'未定'}</span>`:'—'}</td>
       <td style="font-size:12px;">${item.shaken?dateBadgeHtml(item.shaken,'車検'):'—'}</td>
       <td style="font-size:12px;">${item.jibaiseki?dateBadgeHtml(item.jibaiseki,'自賠責'):'—'}</td>
       <td style="font-size:12px;">${item.insurance?dateBadgeHtml(item.insurance,'任意保険'):'—'}</td>
       <td style="font-size:12px;">${item.oil?dateBadgeHtml(item.oil,'オイル交換'):'—'}</td>
-      <td>
-        <div style="display:flex;gap:4px;flex-wrap:wrap;">
+      <td class="sticky-col">
+        <div style="display:flex;gap:4px;flex-wrap:nowrap;">
           ${!isArchived&&(item.lent
-            ?`<button class="equip-card-btn" onclick="openLendModal(${item.id},'return')" style="padding:6px 10px;border-color:#16a34a;color:#166534;">📥 返却</button>`
-            :`<button class="equip-card-btn" onclick="openLendModal(${item.id},'lend')" style="padding:6px 10px;border-color:#3b82f6;color:#1d4ed8;">📤 貸出</button>`)
+            ?`<button class="equip-card-btn" onclick="openLendModal(${item.id},'return')" style="padding:6px 10px;border-color:#16a34a;color:#166534;white-space:nowrap;">📥 返却</button>`
+            :`<button class="equip-card-btn" onclick="openLendModal(${item.id},'lend')" style="padding:6px 10px;border-color:#3b82f6;color:#1d4ed8;white-space:nowrap;">📤 貸出</button>`)
           }
-          <button class="equip-card-btn" onclick="openEdit(${item.id})" style="padding:6px 10px;">✏️ 編集</button>
+          <button class="equip-card-btn" onclick="openEdit(${item.id})" style="padding:6px 10px;white-space:nowrap;">✏️ 編集</button>
           <button class="equip-card-btn" onclick="deleteItem(${item.id})" style="padding:6px 10px;color:var(--danger);">🗑️</button>
         </div>
       </td>
@@ -1080,7 +1131,7 @@ function renderArchivedView(){
     ${sortThHtml('所有者','owner')}
     ${sortThHtml('保管場所','location')}
     ${sortThHtml('アーカイブ理由','archiveReason')}
-    <th>アクション</th>
+    <th class="sticky-col">アクション</th>
   </tr>`;
   const tbody=document.getElementById('tableBody');
   tbody.innerHTML=filtered.map(item=>{
@@ -1099,9 +1150,9 @@ function renderArchivedView(){
       <td style="color:#94a3b8;">${item.owner||'—'}</td>
       <td style="color:#94a3b8;">${item.location||'—'}</td>
       <td style="color:#94a3b8;font-style:italic;">${item.archiveReason||'—'}</td>
-      <td>
+      <td class="sticky-col">
         <div style="display:flex;gap:4px;">
-          <button class="equip-card-btn" onclick="openEdit(${item.id})" style="padding:6px 10px;">✏️ 編集</button>
+          <button class="equip-card-btn" onclick="openEdit(${item.id})" style="padding:6px 10px;white-space:nowrap;">✏️ 編集</button>
           <button class="equip-card-btn" onclick="deleteItem(${item.id})" style="padding:6px 10px;color:var(--danger);">🗑️</button>
         </div>
       </td>
@@ -1278,7 +1329,7 @@ function closeModal(){document.getElementById('modal').classList.remove('active'
 function onCategoryChange(){
   const cat=document.getElementById('f-category').value;
   const meta=CAT_META[cat]||{};
-  const showShaken=(cat==='heavy_own'||cat==='heavy_lease'||cat==='vehicle_lease');
+  const showShaken=(cat==='heavy_own'||cat==='heavy_lease'||cat==='vehicle_lease'||cat==='vehicle_own');
   document.getElementById('field-shaken').style.display=showShaken?'':'none';
   document.getElementById('field-jibaiseki').style.display=(meta.isVehicle||meta.isHeavy)?'':'none';
   document.getElementById('field-oil').style.display=(meta.isVehicle||meta.isHeavy)?'':'none';

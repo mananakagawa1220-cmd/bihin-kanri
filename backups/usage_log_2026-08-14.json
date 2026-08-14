@@ -1,0 +1,8 @@
+[{"id":1,"equipment_id":43,"user_name":"中川","quantity":-3,"remaining":2,"used_at":"2026-04-29T04:59:00+00:00","memo":"修正","created_at":"2026-04-29T05:00:12.972256+00:00"}, 
+ {"id":2,"equipment_id":42,"user_name":"中川","quantity":-1,"remaining":1,"used_at":"2026-04-29T05:00:00+00:00","memo":"修正","created_at":"2026-04-29T05:03:11.958341+00:00"}, 
+ {"id":3,"equipment_id":43,"user_name":"黒田","quantity":4,"remaining":6,"used_at":"2026-04-29T05:03:00+00:00","memo":"修正","created_at":"2026-04-29T05:03:46.897605+00:00"}, 
+ {"id":4,"equipment_id":43,"user_name":"MST　上名主","quantity":-1,"remaining":5,"used_at":"2026-04-29T05:03:00+00:00","memo":"竹田→MST森下様に直接渡し","created_at":"2026-04-29T05:05:02.564555+00:00"}, 
+ {"id":5,"equipment_id":42,"user_name":"中谷","quantity":-1,"remaining":0,"used_at":"2026-06-26T01:11:00+00:00","memo":"町野川","created_at":"2026-07-03T01:13:02.059549+00:00"}, 
+ {"id":6,"equipment_id":43,"user_name":"中谷","quantity":-5,"remaining":0,"used_at":"2026-06-08T01:13:00+00:00","memo":"町野川","created_at":"2026-07-03T01:13:25.663878+00:00"}, 
+ {"id":7,"equipment_id":91,"user_name":"麦ケ浦土場事務所","quantity":-3,"remaining":2,"used_at":"2026-07-03T01:15:00+00:00","memo":null,"created_at":"2026-07-03T01:15:33.168147+00:00"}, 
+ {"id":8,"equipment_id":92,"user_name":"麦ケ浦土場事務所","quantity":-10,"remaining":10,"used_at":"2026-07-03T01:15:00+00:00","memo":null,"created_at":"2026-07-03T01:15:54.422448+00:00"}]
